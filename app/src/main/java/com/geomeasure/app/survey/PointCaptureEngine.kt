@@ -14,11 +14,15 @@ class PointCaptureEngine(
     val minimumSamples: Int = 12,
     private val maximumSamples: Int = 40,
     val minimumObservationMillis: Long = 5_000L,
+    val maximumDispersionM: Double = 1.5,
+    val maximumEllipseSemiMajorM: Double = 3.0,
 ) {
     init {
         require(minimumSamples >= 3)
         require(maximumSamples >= minimumSamples)
         require(minimumObservationMillis >= 0L)
+        require(maximumDispersionM > 0.0 && maximumDispersionM.isFinite())
+        require(maximumEllipseSemiMajorM > 0.0 && maximumEllipseSemiMajorM.isFinite())
     }
 
     private val samples = ArrayDeque<GnssSnapshot>()
@@ -31,7 +35,7 @@ class PointCaptureEngine(
 
     fun add(snapshot: GnssSnapshot): CaptureProgress {
         val quality = GnssQualityEvaluator.evaluate(snapshot)
-        if (quality == PointQuality.REJECTED || !snapshot.hasFix) {
+        if (!GnssQualityEvaluator.isCaptureQualityAllowed(quality) || !snapshot.hasFix) {
             return progress(quality)
         }
 
@@ -53,7 +57,9 @@ class PointCaptureEngine(
 
     fun buildPoint(id: Int): SurveyPoint? {
         if (!isReady()) return null
-        val valid = samples.filter { GnssQualityEvaluator.evaluate(it) != PointQuality.REJECTED && it.hasFix }
+        val valid = samples.filter {
+            GnssQualityEvaluator.isCaptureQualityAllowed(GnssQualityEvaluator.evaluate(it)) && it.hasFix
+        }
         if (valid.size < minimumSamples) return null
 
         val originLat = valid.mapNotNull { it.latitudeDeg }.average()
@@ -99,13 +105,18 @@ class PointCaptureEngine(
         val meanNorth = finalEnu.map { it.north }.average()
         val centered = finalEnu.map { (it.east - meanEast) to (it.north - meanNorth) }
         val dispersion = sqrt(centered.map { (e, n) -> e * e + n * n }.average())
-        val ellipse = precisionEllipse(centered)
+        val ellipse = precisionEllipse(centered) ?: return null
+
+        // A full sample count is not enough: the occupation must also be spatially stable. This
+        // protects against saving a point while the phone solution is still wandering together.
+        if (!dispersion.isFinite() || dispersion > maximumDispersionM) return null
+        if (!ellipse.semiMajorM.isFinite() || ellipse.semiMajorM > maximumEllipseSemiMajorM) return null
 
         // Conservative metadata: do not advertise the best instant observed during a noisy capture.
         val worstQuality = accepted
             .map { GnssQualityEvaluator.evaluate(it.first) }
             .maxByOrNull { it.ordinal }
-            ?: PointQuality.POOR
+            ?: PointQuality.GOOD
         val newest = accepted.maxBy { it.first.elapsedRealtimeNanos.takeIf { n -> n > 0L } ?: it.first.timestampMillis }.first
         val horizontalAccuracy = accepted.mapNotNull { it.first.horizontalAccuracyM }.maxOrNull() ?: return null
         val verticalAccuracy = accepted.mapNotNull { it.first.verticalAccuracyM }.maxOrNull()
@@ -123,9 +134,9 @@ class PointCaptureEngine(
             capturedAtMillis = newest.timestampMillis,
             observationCount = accepted.size,
             dispersionM = dispersion,
-            ellipseSemiMajorM = ellipse?.semiMajorM,
-            ellipseSemiMinorM = ellipse?.semiMinorM,
-            ellipseAzimuthDeg = ellipse?.azimuthDeg,
+            ellipseSemiMajorM = ellipse.semiMajorM,
+            ellipseSemiMinorM = ellipse.semiMinorM,
+            ellipseAzimuthDeg = ellipse.azimuthDeg,
             quality = worstQuality,
         )
     }
@@ -166,7 +177,8 @@ class PointCaptureEngine(
         val lambda1 = ((trace + root) / 2.0).coerceAtLeast(0.0)
         val lambda2 = ((trace - root) / 2.0).coerceAtLeast(0.0)
 
-        // 95% confidence scale for a 2-D normal distribution: sqrt(chi-square(2, 0.95)).
+        // 95% scale of the observed sample cloud under a 2-D normal model. This describes
+        // repeatability/dispersion of the occupation, not absolute GNSS truth accuracy.
         val k95 = 2.44774683068
         val semiMajor = k95 * sqrt(lambda1)
         val semiMinor = k95 * sqrt(lambda2)
