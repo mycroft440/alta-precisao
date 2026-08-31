@@ -1,4 +1,4 @@
-# Development status — GeoMeasure 0.2.1
+# Development status — GeoMeasure 0.2.2
 
 ## Foundation
 - [x] Kotlin-native Android project
@@ -20,11 +20,15 @@
 - [x] Mock-location rejection
 - [x] Monotonic fix ordering and stale-fix rejection
 - [x] Measurement quality gate
+- [x] Android 12+ precise/coarse location requested together
+- [x] Survey capture restricted to GOOD/EXCELLENT fixes
+- [x] MODERATE/POOR samples rejected during an active occupation
 - [x] Multi-observation point occupation
 - [x] Duplicate-fix suppression
 - [x] MAD-style outlier rejection and ENU dispersion
 - [x] Explicit ENU centroid removal before covariance/dispersion
-- [x] 95% horizontal precision ellipse
+- [x] Final spatial-stability gate: maximum RMS dispersion and 95% sample-cloud ellipse
+- [x] 95% sample-cloud ellipse clearly labelled as repeatability, not absolute truth accuracy
 - [x] Conservative final point quality/accuracy metadata
 - [x] Raw GNSS CSV logger on dedicated IO executor
 - [x] Queued RAW events preserved during session shutdown
@@ -69,6 +73,7 @@
 - [x] Camera key includes project identity
 - [ ] Draw precision ellipse geospatially on map
 - [ ] Offline region download UI
+- [ ] Production APK with a configured MAPBOX_ACCESS_TOKEN secret
 
 ## Professional RTK foundation
 - [x] RTK FIXED/FLOAT solution model
@@ -82,8 +87,10 @@
 - [x] RTCM3 framing + CRC-24Q
 - [x] CRC failure resynchronization
 - [x] Generic receiver transport interface
+- [x] Android 12+ BLUETOOTH_SCAN/CONNECT manifest permissions prepared
 - [ ] Bluetooth receiver implementation
 - [ ] USB serial receiver implementation
+- [ ] Runtime nearby-device permission flow for RTK screen
 - [ ] NTRIP -> RTCM -> receiver relay service
 - [ ] Receiver solution -> survey PositionSource
 - [ ] FIXED/correction-age capture gate
@@ -92,8 +99,8 @@
 - [ ] PPK workflow
 
 ## Validation still required on real infrastructure
-- [ ] Full Gradle/Android build with Android SDK 37 and real Mapbox download credential
-- [ ] Runtime Mapbox 3D rendering on representative Android 10–17 devices
+- [ ] Latest 0.2.2 GitHub Actions run: unit tests + lint + debug APK
+- [ ] Runtime Mapbox 3D rendering on representative Android 10–17 devices with a real public token
 - [ ] Real Bluetooth/USB RTK receiver integration
 - [ ] NTRIP field test against production caster
 - [ ] Accuracy validation against surveyed control monuments
