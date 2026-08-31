@@ -33,6 +33,7 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
+        resValues = true
     }
 
     compileOptions {
@@ -59,10 +60,7 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")
 
-    // Robust ellipsoidal geodesics and polygon area/perimeter (Karney algorithm).
     implementation("net.sf.geographiclib:GeographicLib-Java:2.1")
-
-    // Native Android map with satellite imagery and 3D Terrain DEM.
     implementation("com.mapbox.maps:android-ndk27:11.28.3")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
