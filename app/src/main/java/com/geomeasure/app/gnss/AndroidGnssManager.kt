@@ -5,12 +5,12 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.content.pm.PackageManager
 import android.location.GnssMeasurementsEvent
-import android.location.GnssStatus
 import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
 import android.os.Build
 import androidx.core.content.ContextCompat
+import androidx.core.location.GnssStatusCompat
 import androidx.core.location.LocationCompat
 import androidx.core.location.LocationManagerCompat
 import com.geomeasure.app.gnss.raw.GnssRawLogger
@@ -46,8 +46,8 @@ class AndroidGnssManager(context: Context) {
         }
     }
 
-    private val statusCallback = object : GnssStatus.Callback() {
-        override fun onSatelliteStatusChanged(status: GnssStatus) {
+    private val statusCallback = object : GnssStatusCompat.Callback() {
+        override fun onSatelliteStatusChanged(status: GnssStatusCompat) {
             var used = 0
             var cn0Sum = 0.0
             var cn0Count = 0

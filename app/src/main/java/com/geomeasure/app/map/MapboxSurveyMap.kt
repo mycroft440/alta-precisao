@@ -41,10 +41,13 @@ import com.mapbox.maps.extension.style.terrain.generated.terrain
 import com.mapbox.maps.plugin.annotation.annotations
 import com.mapbox.maps.plugin.annotation.generated.CircleAnnotationManager
 import com.mapbox.maps.plugin.annotation.generated.CircleAnnotationOptions
+import com.mapbox.maps.plugin.annotation.generated.createCircleAnnotationManager
 import com.mapbox.maps.plugin.annotation.generated.PolygonAnnotationManager
 import com.mapbox.maps.plugin.annotation.generated.PolygonAnnotationOptions
+import com.mapbox.maps.plugin.annotation.generated.createPolygonAnnotationManager
 import com.mapbox.maps.plugin.annotation.generated.PolylineAnnotationManager
 import com.mapbox.maps.plugin.annotation.generated.PolylineAnnotationOptions
+import com.mapbox.maps.plugin.annotation.generated.createPolylineAnnotationManager
 
 @Composable
 fun MapboxSurveyMap(
@@ -86,26 +89,21 @@ fun MapboxSurveyMap(
             }
         }
 
-        fun pauseIfNeeded() {
-            if (resumed) {
-                mapView.onPause()
-                resumed = false
-            }
-        }
-
         fun stopIfNeeded() {
-            pauseIfNeeded()
             if (started) {
                 mapView.onStop()
                 started = false
             }
+            // MapView 11.x exposes onResume but no matching public onPause. Reset the local
+            // resume guard when stopped so the next visible lifecycle can resume cleanly.
+            resumed = false
         }
 
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
                 Lifecycle.Event.ON_START -> startIfNeeded()
                 Lifecycle.Event.ON_RESUME -> resumeIfNeeded()
-                Lifecycle.Event.ON_PAUSE -> pauseIfNeeded()
+                Lifecycle.Event.ON_PAUSE -> Unit
                 Lifecycle.Event.ON_STOP -> stopIfNeeded()
                 else -> Unit
             }
