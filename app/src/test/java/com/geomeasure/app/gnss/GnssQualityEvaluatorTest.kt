@@ -2,6 +2,8 @@ package com.geomeasure.app.gnss
 
 import com.geomeasure.app.model.PointQuality
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class GnssQualityEvaluatorTest {
@@ -23,5 +25,14 @@ class GnssQualityEvaluatorTest {
             PointQuality.EXCELLENT,
             GnssQualityEvaluator.evaluate(good, now, nowElapsedRealtimeNanos = 10_500_000_000L),
         )
+    }
+
+    @Test
+    fun onlyGoodOrExcellentQualityCanEnterSurveyCapture() {
+        assertTrue(GnssQualityEvaluator.isCaptureQualityAllowed(PointQuality.EXCELLENT))
+        assertTrue(GnssQualityEvaluator.isCaptureQualityAllowed(PointQuality.GOOD))
+        assertFalse(GnssQualityEvaluator.isCaptureQualityAllowed(PointQuality.MODERATE))
+        assertFalse(GnssQualityEvaluator.isCaptureQualityAllowed(PointQuality.POOR))
+        assertFalse(GnssQualityEvaluator.isCaptureQualityAllowed(PointQuality.REJECTED))
     }
 }
