@@ -56,6 +56,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.geomeasure.app.geodesy.Wgs84
+import com.geomeasure.app.gnss.GnssQualityEvaluator
 import com.geomeasure.app.gnss.GnssSnapshot
 import com.geomeasure.app.map.MapDisplayMode
 import com.geomeasure.app.map.MapboxSurveyMap
@@ -82,8 +83,19 @@ fun GeoMeasureApp(viewModel: SurveyViewModel) {
     var terrainEnabled by remember { mutableStateOf(true) }
 
     val permissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission(),
-    ) { granted -> permissionGranted = granted }
+        ActivityResultContracts.RequestMultiplePermissions(),
+    ) { permissions ->
+        permissionGranted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true
+        if (permissionGranted) viewModel.startGnss()
+    }
+    val requestPreciseLocation: () -> Unit = {
+        permissionLauncher.launch(
+            arrayOf(
+                Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.ACCESS_COARSE_LOCATION,
+            ),
+        )
+    }
 
     DisposableEffect(lifecycleOwner, permissionGranted) {
         val observer = LifecycleEventObserver { _, event ->
@@ -132,6 +144,7 @@ fun GeoMeasureApp(viewModel: SurveyViewModel) {
     }
 
     val quality = viewModel.quality()
+    val captureAllowed = GnssQualityEvaluator.isCaptureQualityAllowed(quality)
     val measurement = remember(points) {
         Wgs84.measurePolygon(
             points.map { Wgs84.Geo(it.latitudeDeg, it.longitudeDeg, it.ellipsoidalHeightM ?: 0.0) },
@@ -170,7 +183,7 @@ fun GeoMeasureApp(viewModel: SurveyViewModel) {
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             if (!permissionGranted) {
-                PermissionCard { permissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION) }
+                PermissionCard(requestPreciseLocation)
             } else {
                 QualityHeader(
                     quality = quality,
@@ -231,13 +244,13 @@ fun GeoMeasureApp(viewModel: SurveyViewModel) {
 
             Button(
                 onClick = {
-                    if (!permissionGranted) permissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+                    if (!permissionGranted) requestPreciseLocation()
                     else viewModel.startPointCapture()
                 },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp),
-                enabled = capture == null && permissionGranted && quality != PointQuality.REJECTED && currentProject != null,
+                enabled = capture == null && permissionGranted && captureAllowed && currentProject != null,
             ) {
                 Icon(Icons.Default.GpsFixed, contentDescription = null)
                 Spacer(Modifier.width(8.dp))
@@ -283,7 +296,7 @@ private fun PermissionCard(onRequest: () -> Unit) {
     Card {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("Acesso GNSS necessário", fontWeight = FontWeight.Bold)
-            Text("A medição usa localização precisa e, quando o hardware permitir, telemetria GNSS bruta.")
+            Text("A medição exige localização exata. No Android 12+, selecione Precisa/Exata quando o sistema perguntar.")
             Button(onClick = onRequest) {
                 Icon(Icons.Default.MyLocation, contentDescription = null)
                 Spacer(Modifier.width(8.dp))
@@ -330,8 +343,12 @@ private fun QualityHeader(quality: PointQuality, gnss: GnssSnapshot) {
                 Text("Pontos de localização simulada são rejeitados.", color = MaterialTheme.colorScheme.error)
             } else if (!gnss.providerEnabled) {
                 Text("Ative a localização/GPS do aparelho para medir.", color = MaterialTheme.colorScheme.error)
-            } else {
-                Unit
+            } else if (!GnssQualityEvaluator.isCaptureQualityAllowed(quality)) {
+                Text(
+                    "Aguarde qualidade BOA ou EXCELENTE. Amostras MODERADAS/RUINS não entram no levantamento.",
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall,
+                )
             }
         }
     }
@@ -375,8 +392,12 @@ private fun LastPointCard(point: SurveyPoint, viewModel: SurveyViewModel) {
             Text("Lat ${point.latitudeDeg.fmt(8)}  •  Lon ${point.longitudeDeg.fmt(8)}")
             point.ellipseSemiMajorM?.let { major ->
                 Text(
-                    "Elipse 95%: ${major.fmt(2)} × ${point.ellipseSemiMinorM?.fmt(2) ?: "—"} m  •  az ${point.ellipseAzimuthDeg?.fmt(1) ?: "—"}°",
+                    "Dispersão amostral 95%: ${major.fmt(2)} × ${point.ellipseSemiMinorM?.fmt(2) ?: "—"} m  •  az ${point.ellipseAzimuthDeg?.fmt(1) ?: "—"}°",
                     style = MaterialTheme.typography.bodySmall,
+                )
+                Text(
+                    "A elipse descreve a repetibilidade das amostras, não o erro absoluto da coordenada.",
+                    style = MaterialTheme.typography.labelSmall,
                 )
             }
             Text(
