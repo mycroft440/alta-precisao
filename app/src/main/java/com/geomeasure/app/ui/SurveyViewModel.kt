@@ -107,6 +107,12 @@ class SurveyViewModel(application: Application) : AndroidViewModel(application) 
 
     fun startPointCapture() {
         if (captureJob?.isActive == true) return
+        val initialQuality = quality()
+        if (!GnssQualityEvaluator.isCaptureQualityAllowed(initialQuality)) {
+            _uiMessage.value = "Aguarde qualidade GNSS BOA ou EXCELENTE antes de marcar o ponto."
+            return
+        }
+
         val projectId = _currentProject.value?.id ?: return
         val pointSequence = _points.value.size + 1
         val generation = ++captureGeneration
@@ -116,7 +122,7 @@ class SurveyViewModel(application: Application) : AndroidViewModel(application) 
             requiredSamples = captureEngine.minimumSamples,
             observationSpanMillis = 0L,
             requiredObservationMillis = captureEngine.minimumObservationMillis,
-            currentQuality = quality(),
+            currentQuality = initialQuality,
             ready = false,
         )
 
@@ -133,7 +139,7 @@ class SurveyViewModel(application: Application) : AndroidViewModel(application) 
 
                 if (generation != captureGeneration) return@launch
                 if (built == null) {
-                    _uiMessage.value = "Não houve estabilidade GNSS suficiente. Vá para céu mais aberto e tente novamente."
+                    _uiMessage.value = "Não houve estabilidade GNSS suficiente. Mantenha o telefone parado, vá para céu mais aberto e tente novamente."
                     return@launch
                 }
 
