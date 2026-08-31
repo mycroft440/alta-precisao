@@ -1,0 +1,1 @@
+Trigger Android CI build for GeoMeasure 0.2.1 on 2026-08-31.
