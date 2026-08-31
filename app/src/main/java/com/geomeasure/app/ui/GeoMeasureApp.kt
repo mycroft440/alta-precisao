@@ -349,6 +349,8 @@ private fun QualityHeader(quality: PointQuality, gnss: GnssSnapshot) {
                     color = MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.bodySmall,
                 )
+            } else {
+                Unit
             }
         }
     }
