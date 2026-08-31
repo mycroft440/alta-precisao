@@ -30,14 +30,6 @@ jobs:
         with:
           gradle-version: '9.5.0'
 
-      - name: Verify Mapbox download credential
-        shell: bash
-        run: |
-          if [ -z "${MAPBOX_DOWNLOADS_TOKEN}" ]; then
-            echo "MAPBOX_DOWNLOADS_TOKEN is required to resolve the Mapbox Android SDK." >&2
-            exit 1
-          fi
-
       - name: Unit tests
         run: gradle :app:testDebugUnitTest --stacktrace --no-daemon
 
