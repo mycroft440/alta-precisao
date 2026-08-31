@@ -36,4 +36,12 @@ object GnssQualityEvaluator {
             else -> PointQuality.POOR
         }
     }
+
+    /**
+     * Autonomous phone surveying is intentionally strict: only GOOD or EXCELLENT fixes may enter
+     * a point occupation. MODERATE/POOR remain visible as diagnostics but are never stored as
+     * measurement samples. Professional RTK will use its own FIXED/correction-age gate.
+     */
+    fun isCaptureQualityAllowed(quality: PointQuality): Boolean =
+        quality == PointQuality.EXCELLENT || quality == PointQuality.GOOD
 }
